@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nature Quest! 🌳✨</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gradient-to-br from-amber-300 via-emerald-500 to-teal-700 text-slate-900 min-h-screen flex flex-col items-center p-6">
+
+    <div class="max-w-xl w-full bg-white/95 backdrop-blur border-4 border-amber-400 rounded-3xl shadow-2xl p-8 mt-4">
+        
+        <!-- Header & Quest Box -->
+        <div class="text-center mb-6">
+            <span class="bg-amber-400 text-slate-900 text-xs px-3 py-1 rounded-full uppercase tracking-wider font-extrabold shadow-sm">🌿 Touch Grass Challenge</span>
+            <h1 class="text-3xl font-black mt-2 text-emerald-900">Nature Quest! 🏕️</h1>
+            <p class="text-slate-600 text-sm mt-1 font-medium">Complete outdoor missions by snapping pictures of nature!</p>
+            
+            <!-- Dynamic Quest Banner -->
+            <div class="mt-4 bg-emerald-50 border-2 border-dashed border-emerald-400 rounded-2xl p-4 shadow-sm">
+                <p class="text-xs uppercase tracking-wider font-bold text-emerald-700">Your Current Mission:</p>
+                <p id="quest-text" class="text-lg font-black text-emerald-950 mt-1">Loading mission...</p>
+                <button onclick="fetchNewQuest()" class="mt-2 text-xs bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-1.5 px-3 rounded-full transition shadow">
+                    🔄 Get a Different Mission
+                </button>
+            </div>
+        </div>
+
+        <!-- Camera Viewport -->
+        <div id="camera-container" class="relative rounded-2xl overflow-hidden bg-black mb-4 hidden border-4 border-emerald-400">
+            <video id="video" autoplay playsinline class="w-full h-64 object-cover"></video>
+            <button onclick="capturePhoto()" class="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-amber-400 text-slate-900 font-black px-6 py-3 rounded-full shadow-lg hover:bg-amber-300 transition text-lg">
+                SNAP MISSION PHOTO! 📸
+            </button>
+        </div>
+
+        <canvas id="canvas" class="hidden"></canvas>
+
+        <!-- Preview & Action Options -->
+        <div id="preview-container" class="mb-6 text-center">
+            <img id="preview" class="max-h-64 mx-auto rounded-2xl hidden shadow-lg mb-4 border-4 border-emerald-200" alt="Mission Preview">
+            <div class="flex gap-3 justify-center" id="action-buttons">
+                <button onclick="startCamera()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 px-5 rounded-2xl shadow-md transition flex items-center gap-2">
+                    📷 Use Camera
+                </button>
+                <label class="bg-amber-500 hover:bg-amber-400 text-slate-900 font-bold py-3 px-5 rounded-2xl shadow-md transition cursor-pointer flex items-center gap-2">
+                    📁 Upload Photo
+                    <input type="file" id="imageInput" accept="image/*" class="hidden">
+                </label>
+            </div>
+        </div>
+
+        <!-- Submit Button -->
+        <button id="analyzeBtn" onclick="analyzeMission()" class="w-full bg-emerald-700 hover:bg-emerald-600 text-white font-black text-lg py-4 px-6 rounded-2xl transition shadow-xl disabled:opacity-50 transform hover:scale-[1.01]" disabled>
+            ✨ Complete the Mission ! 🏅
+        </button>
+
+        <!-- Results / Guide Feedback Box -->
+        <div id="results" class="mt-6 hidden bg-amber-50 border-2 border-amber-300 rounded-2xl p-6 text-slate-800 leading-relaxed shadow-inner">
+            <h3 class="font-black text-xl text-amber-800 mb-3 flex items-center gap-2">
+                <span>🦉</span> Forest Guide's Report Card:
+            </h3>
+            <div id="output-content" class="whitespace-pre-line text-base font-medium"></div>
+        </div>
+    </div>
+
+    <script>
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const cameraContainer = document.getElementById('camera-container');
+        const preview = document.getElementById('preview');
+        const imageInput = document.getElementById('imageInput');
+        const analyzeBtn = document.getElementById('analyzeBtn');
+        const results = document.getElementById('results');
+        const outputContent = document.getElementById('output-content');
+        const questText = document.getElementById('quest-text');
+
+        let base64Image = null;
+        let currentQuestString = "";
+
+        // Fetch initial quest on page load
+        async function fetchNewQuest() {
+            try {
+                const res = await fetch('/api/get-quest');
+                const data = await res.json();
+                currentQuestString = data.quest;
+                questText.textContent = currentQuestString;
+            } catch (err) {
+                questText.textContent = "Find a leaf or flower outdoors! 🌿";
+                currentQuestString = "Find a leaf or flower outdoors!";
+            }
+        }
+        fetchNewQuest();
+
+        async function startCamera() {
+            results.classList.add('hidden');
+            cameraContainer.classList.remove('hidden');
+            preview.classList.add('hidden');
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+                video.srcObject = stream;
+            } catch (err) {
+                alert("Camera access denied or unavailable.");
+                cameraContainer.classList.add('hidden');
+            }
+        }
+
+        function capturePhoto() {
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0);
+            
+            const stream = video.srcObject;
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+            }
+            cameraContainer.classList.add('hidden');
+
+            const dataUrl = canvas.toDataURL('image/jpeg');
+            base64Image = dataUrl.split(',')[1];
+            preview.src = dataUrl;
+            preview.classList.remove('hidden');
+            analyzeBtn.disabled = false;
+        }
+
+        imageInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    preview.src = event.target.result;
+                    preview.classList.remove('hidden');
+                    cameraContainer.classList.add('hidden');
+                    analyzeBtn.disabled = false;
+                    base64Image = event.target.result.split(',')[1];
+                }
+                reader.readAsDataURL(file);
+            }
+        });
+
+        async function analyzeMission() {
+            if (!base64Image) return;
+
+            analyzeBtn.disabled = true;
+            analyzeBtn.textContent = "🦉 The forest owl is reviewing your find...";
+            results.classList.add('hidden');
+
+            try {
+                const response = await fetch('/api/analyze', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        image: base64Image,
+                        quest: currentQuestString 
+                    })
+                });
+
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.error || "Analysis failed.");
+                
+                outputContent.textContent = data.text;
+                results.classList.remove('hidden');
+            } catch (err) {
+                alert("Error: " + err.message);
+            } finally {
+                analyzeBtn.disabled = false;
+                analyzeBtn.textContent = "✨ Completed the Mission ! 🏅";
+            }
+        }
+    </script>
+</body>
+</html>
