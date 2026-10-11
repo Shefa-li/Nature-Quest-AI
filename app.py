@@ -1,5 +1,6 @@
+
 import os
-from dotenv import load
+from dotenv import load_dotenv
 import base64
 import random
 from io import BytesIO
@@ -9,7 +10,7 @@ from PIL import Image
 
 
 
-load_dotenv() # Loads variables from .env file
+load_dotenv() # Load variables from .env file
 
 client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
 
